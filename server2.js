@@ -76,19 +76,40 @@ wss.on('connection', function connection(ws) {
   });
 });
 
+
+// formatDate.js
+function formatLocalTime(timestamp) {
+  const date = new Date(timestamp);
+
+  return new Intl.DateTimeFormat('en-GB', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false,
+    timeZoneName: 'short' // optional
+  }).format(date);
+}
+
 // Broadcast all ship locations every second
 setInterval(() => {
   let shipsArray = Object.values(shipLocations);
+  if(shipsArray.length==0){
+    return;
+  }
   shipsArray.sort((a, b) => a.ship_id.localeCompare(b.ship_id));
+  
   const packet = {
     type: 'shipsUpdate',
     ships: shipsArray,
-    timestamp: Date.now()
+    timestamp: formatLocalTime(Date.now())
   };
 
   const packetString = JSON.stringify(packet);
   clients.forEach(client => {
-    if (client.readyState === WebSocket.OPEN) {
+    if (client.readyState === WebSocket.OPEN && shipsArray.length >0) {
       client.send(packetString);
     }
   });
