@@ -6,7 +6,14 @@ const WS_PORT = 4001;
 const WS_URL = `ws://0.0.0.0:${WS_PORT}`; // Updated for logging clarity
 const MAX_CLIENTS = 200;
 
-const LOG_FILE_PATH = path.join(__dirname, "ships_log.jsonl");
+// Define log directory and file path
+const LOG_DIR = path.join(__dirname, "logs");
+const LOG_FILE_PATH = path.join(LOG_DIR, "ships_log.log");
+
+// Ensure the logs directory exists
+if (!fs.existsSync(LOG_DIR)) {
+  fs.mkdirSync(LOG_DIR, { recursive: true });
+}
 
 const wss = new WebSocket.Server({ host: "0.0.0.0", port: WS_PORT }); // Listen on all interfaces
 let clients = [];
