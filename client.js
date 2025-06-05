@@ -151,7 +151,7 @@ routes.forEach((route, i) => {
         ws.send(JSON.stringify(data));
         console.log(`${route.shipId} sent:`, data);
       }
-    }, 2000);
+    }, 1000);
   });
 
   ws.on("message", (data) => {

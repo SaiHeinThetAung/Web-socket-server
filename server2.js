@@ -148,7 +148,7 @@ setInterval(() => {
       }
     });
   } else {
-    console.log("No ship data to log, skipping write to ships_log.jsonl");
+    console.log("No ship data to log, skipping write to ships_log.");
   }
 }, 1000);
 
