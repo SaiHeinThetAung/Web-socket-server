@@ -1,6 +1,6 @@
 const WebSocket = require("ws");
 
-const WS_URL = "ws://localhost:4001";
+const WS_URL = "ws://localhost:4002";
 const NUM_SHIPS = 3;
 const clients = [];
 

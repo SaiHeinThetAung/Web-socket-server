@@ -24,7 +24,7 @@
   </div>
 
   <script>
-    const WS_URL = 'ws://localhost:4001'; // update this if needed
+    const WS_URL = 'ws://localhost:4002'; // update this if needed
     const map = L.map('map').setView([16.8167, 96.1927], 15);
 
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -47,12 +47,14 @@
         const lat = topGps.latitude;
         const lon = topGps.longitude;
         const key = ship.ship_id;
+        const alt = topGps.altitude;
 
         const popupContent = `
           <div>
             <strong>Ship ID:</strong> ${ship.ship_id}<br/>
             <strong>Lat:</strong> ${lat}<br/>
             <strong>Lon:</strong> ${lon}<br/>
+            <strong>Alt:</strong> ${alt}<br/>
             <strong>Speed:</strong> ${topGps.speed} kn<br/>
             <strong>Sats:</strong> ${topGps.satellites}<br/>
             <strong>Time:</strong> ${ship.timestamp}

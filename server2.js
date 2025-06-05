@@ -2,7 +2,7 @@ const WebSocket = require("ws");
 const fs = require("fs");
 const path = require("path");
 
-const WS_PORT = 4001;
+const WS_PORT = 4002;
 const WS_URL = `ws://0.0.0.0:${WS_PORT}`; // Updated for logging clarity
 const MAX_CLIENTS = 200;
 
@@ -18,6 +18,7 @@ if (!fs.existsSync(LOG_DIR)) {
 const wss = new WebSocket.Server({ host: "0.0.0.0", port: WS_PORT }); // Listen on all interfaces
 let clients = [];
 let shipLocations = {};
+let newDataReceived = false; // Flag to track new data
 
 wss.on("connection", function connection(ws) {
   if (clients.length >= MAX_CLIENTS) {
@@ -67,6 +68,7 @@ wss.on("connection", function connection(ws) {
             heading: msg.heading ?? null,
             gps_data: validGpsData,
           };
+          newDataReceived = true; // Set flag when new valid data is received
           console.log(
             `Received for ${msg.ship_id}:`,
             shipLocations[msg.ship_id]
@@ -116,10 +118,10 @@ function formatLocalTime(timestamp) {
 // Broadcast all ship locations every second
 setInterval(() => {
   let shipsArray = Object.values(shipLocations);
-  if (shipsArray.length == 0) {
+  if (shipsArray.length === 0) {
+    console.log("No ship data available, skipping broadcast and log.");
     return;
   }
-  shipsArray.sort((a, b) => a.ship_id.localeCompare(b.ship_id));
 
   const packet = {
     type: "shipsUpdate",
@@ -128,15 +130,13 @@ setInterval(() => {
   };
 
   const packetString = JSON.stringify(packet);
-  if (clients.length > 0) {
-    clients.forEach((client) => {
-      if (client.readyState === WebSocket.OPEN && shipsArray.length > 0) {
-        client.send(packetString);
-      }
-    });
-  }
+  clients.forEach((client) => {
+    if (client.readyState === WebSocket.OPEN) {
+      client.send(packetString);
+    }
+  });
 
-  if (shipsArray.length > 0 && clients.length > 0) {
+  if (newDataReceived) { // Only log if new data was received
     const logEntry =
       JSON.stringify({
         ships: shipsArray,
@@ -147,8 +147,9 @@ setInterval(() => {
         console.error("Error writing to log file:", err);
       }
     });
+    newDataReceived = false; // Reset flag after logging
   } else {
-    console.log("No ship data to log, skipping write to ships_log.");
+    console.log("No new ship data received, skipping log.");
   }
 }, 1000);
 
