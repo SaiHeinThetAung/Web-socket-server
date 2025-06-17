@@ -1,0 +1,20 @@
+{
+    "keep": {
+        "days": false,
+        "amount": 3
+    },
+    "auditLog": "D:\\Learning\\Web Socket\\Web-socket-server\\logs\\.winston-audit.json",
+    "files": [
+        {
+            "date": 1750137932834,
+            "name": "D:\\Learning\\Web Socket\\Web-socket-server\\logs\\ships_log-2025-06-17-11-54.log",
+            "hash": "72d3515759271472e5dac62a1a66fbfa00327f2ecd5eb1d525cd3b2887daeeaf"
+        },
+        {
+            "date": 1750138020728,
+            "name": "D:\\Learning\\Web Socket\\Web-socket-server\\logs\\ships_log-2025-06-17-11-57.log",
+            "hash": "36603f08edd87124ab50c78fcaf37136a4c4e2a52f051271fc283ad893c4f8b2"
+        }
+    ],
+    "hashType": "sha256"
+}
