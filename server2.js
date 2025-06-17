@@ -1,80 +1,9 @@
 const WebSocket = require("ws");
-const fs = require("fs");
-const path = require("path");
-const winston = require("winston");
-const DailyRotateFile = require("winston-daily-rotate-file");
-const AdmZip = require("adm-zip");
+const logger = require("./logger");
 
 const WS_PORT = 4002;
 const WS_URL = `ws://0.0.0.0:${WS_PORT}`;
 const MAX_CLIENTS = 200;
-const LOG_DIR = path.join(__dirname, "logs");
-
-// Ensure the logs directory exists
-if (!fs.existsSync(LOG_DIR)) {
-  fs.mkdirSync(LOG_DIR, { recursive: true });
-}
-
-// Configure Winston logger
-const logger = winston.createLogger({
-  level: "debug", // Debug to trace zipping issues
-  format: winston.format.combine(
-    winston.format.timestamp(),
-    winston.format.json()
-  ),
-  transports: [
-    new winston.transports.Console({
-      format: winston.format.simple(),
-    }),
-    new DailyRotateFile({
-      filename: path.join(LOG_DIR, "ships_log-%DATE%.log"),
-      datePattern: "YYYY-MM-DD-HH-mm",
-      zippedArchive: false, // Disable built-in zipping
-      maxSize: "20m",
-      maxFiles: "3m", // Keep logs for 3 minutes
-      auditFile: path.join(LOG_DIR, ".winston-audit.json"),
-      frequency: "3m", // Force 3-minute rotation
-      format: winston.format.combine(
-        winston.format.timestamp(),
-        winston.format.json()
-      ),
-    }),
-  ],
-});
-
-// Enhanced event handlers with manual zipping
-logger.transports.forEach((transport) => {
-  if (transport instanceof DailyRotateFile) {
-    transport.on("rotate", (oldFilename, newFilename) => {
-      console.log(`Log rotated from ${oldFilename} to ${newFilename}`);
-      // Manually zip the old log file
-      if (fs.existsSync(oldFilename)) {
-        try {
-          const zip = new AdmZip();
-          zip.addLocalFile(oldFilename);
-          const zipFile = oldFilename + ".zip";
-          zip.writeZip(zipFile);
-          console.log(`Zip file created: ${zipFile}`);
-          // Delete the original log file after zipping
-          fs.unlinkSync(oldFilename);
-          console.log(`Original log file deleted: ${oldFilename}`);
-        } catch (error) {
-          console.log(`Failed to zip ${oldFilename}: ${error.message}`, {
-            error,
-          });
-        }
-      } else {
-        logger.warn(`Old log file not found for zipping: ${oldFilename}`);
-      }
-    });
-    transport.on("error", (error) => {
-      console.log(`Log file error: ${error.message}`, { error });
-    });
-    transport.on("logRemoved", (removedFilename) => {
-      console.log(`Old log file removed: ${removedFilename}`);
-    });
-  }
-});
 
 const wss = new WebSocket.Server({ host: "0.0.0.0", port: WS_PORT });
 let clients = [];
@@ -130,9 +59,6 @@ wss.on("connection", function connection(ws) {
             gps_data: validGpsData,
           };
           newDataReceived = true;
-          // logger.info(`Received for ${msg.ship_id}`, {
-          //   shipData: shipLocations[msg.ship_id],
-          // });
         } else {
           logger.warn(`No valid GPS entries in message from ${msg.ship_id}`, {
             gpsData: msg.gps_data,
@@ -154,7 +80,6 @@ wss.on("connection", function connection(ws) {
   ws.on("error", (error) => {
     console.log(`WebSocket error: ${error.message}`, { error });
     clients = clients.filter((client) => client !== ws);
-    // logger.info(`Client error, removed. Total clients: ${clients.length}`);
   });
 });
 
@@ -169,7 +94,7 @@ function formatLocalTime(timestamp) {
     second: "2-digit",
     hour12: false,
     timeZoneName: "short",
-  }).format(date)
+  }).format(date);
 }
 
 setInterval(() => {
