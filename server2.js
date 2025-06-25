@@ -3,6 +3,7 @@ const logger = require("./logger");
 
 const PORT_RANGE = { start: 4002, end: 4010 };
 const MAX_CLIENTS = 200;
+const FRONTEND_PORT = 4002;
 
 let clients = [];
 let shipLocations = {};
@@ -25,6 +26,8 @@ wssServers.forEach(({ port, wss }) => {
       return;
     }
 
+    // Store the port with the client for filtering broadcasts
+    ws.port = port;
     clients.push(ws);
     console.log(
       `Client connected on port ${port}. Total clients: ${clients.length}`
@@ -128,8 +131,9 @@ setInterval(() => {
   };
 
   const packetString = JSON.stringify(packet);
+  // Only send updates to clients connected on the frontend port (4002)
   clients.forEach((client) => {
-    if (client.readyState === WebSocket.OPEN) {
+    if (client.readyState === WebSocket.OPEN && client.port === FRONTEND_PORT) {
       client.send(packetString);
     }
   });

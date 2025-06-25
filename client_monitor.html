@@ -14,24 +14,37 @@
     #map {
       height: 90vh;
     }
+    .loading {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      z-index: 1000;
+      background: rgba(255, 255, 255, 0.8);
+      padding: 10px;
+      border-radius: 5px;
+    }
   </style>
 </head>
 <body class="bg-gray-100 font-sans">
   <div class="container mx-auto p-4">
     <h1 class="text-2xl font-bold mb-2">Ship GPS Realtime Map</h1>
     <div id="status" class="mb-4 text-lg font-semibold text-gray-700">Connecting to WebSocket...</div>
-    <div id="map" class="rounded shadow-md"></div>
+    <div id="map" class="rounded shadow-md relative">
+      <div id="loading" class="loading hidden">Loading ship data...</div>
+    </div>
   </div>
 
   <script>
-    const WS_URL = 'ws://localhost:4002'; // update this if needed
-    const map = L.map('map').setView([16.8167, 96.1927], 15);
+    const WS_URL = 'ws://localhost:4002';
+    const map = L.map('map').setView([16.8167, 96.1927], 5); // Adjusted initial zoom for broader view
 
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       attribution: '© OpenStreetMap contributors'
     }).addTo(map);
 
     const shipMarkers = new Map(); // key: ship_id => marker
+    let reconnectAttempts = 0;
 
     function updateStatus(msg, color) {
       const el = document.getElementById("status");
@@ -39,25 +52,44 @@
       el.className = `mb-4 text-lg font-semibold text-${color}-700`;
     }
 
+    function showLoading(show) {
+      document.getElementById("loading").classList.toggle("hidden", !show);
+    }
+
     function updateMap(data) {
+      if (!data.ships || !Array.isArray(data.ships)) {
+        console.warn("Invalid ships data received:", data);
+        return;
+      }
+
+      showLoading(false); // Hide loading once data is received
+      const bounds = L.latLngBounds();
+
       data.ships.forEach(ship => {
+        if (!ship.ship_id || !ship.gps_data) {
+          console.warn("Invalid ship data:", ship);
+          return;
+        }
+
         const topGps = ship.gps_data.find(gps => gps.gps === "top_gps");
-        if (!topGps || topGps.latitude == null || topGps.longitude == null) return;
+        if (!topGps || topGps.latitude == null || topGps.longitude == null) {
+          console.warn("Invalid top_gps data for ship:", ship.ship_id);
+          return;
+        }
 
         const lat = topGps.latitude;
         const lon = topGps.longitude;
         const key = ship.ship_id;
-        const alt = topGps.altitude;
 
         const popupContent = `
           <div>
-            <strong>Ship ID:</strong> ${ship.ship_id}<br/>
-            <strong>Lat:</strong> ${lat}<br/>
-            <strong>Lon:</strong> ${lon}<br/>
-            <strong>Alt:</strong> ${alt}<br/>
-            <strong>Speed:</strong> ${topGps.speed} kn<br/>
-            <strong>Sats:</strong> ${topGps.satellites}<br/>
-            <strong>Time:</strong> ${ship.timestamp}
+            <strong>Ship ID:</strong> ${ship.ship_id || "N/A"}<br/>
+            <strong>Lat:</strong> ${lat.toFixed(7)}<br/>
+            <strong>Lon:</strong> ${lon.toFixed(7)}<br/>
+            <strong>Alt:</strong> ${topGps.altitude != null ? topGps.altitude.toFixed(3) + "m" : "N/A"}<br/>
+            <strong>Speed:</strong> ${topGps.speed != null ? topGps.speed.toFixed(2) + "kn" : "N/A"}<br/>
+            <strong>Sats:</strong> ${topGps.satellites != null ? topGps.satellites : "N/A"}<br/>
+            <strong>Time:</strong> ${ship.timestamp || "N/A"}
           </div>
         `;
 
@@ -67,21 +99,32 @@
           const marker = L.marker([lat, lon]).addTo(map).bindPopup(popupContent);
           shipMarkers.set(key, marker);
         }
+
+        bounds.extend([lat, lon]);
       });
+
+      // Auto-zoom to fit all markers (optional, comment out if not desired)
+      if (shipMarkers.size > 0 && bounds.isValid()) {
+        map.fitBounds(bounds, { padding: [50, 50], maxZoom: 15 });
+      }
     }
 
     function connectWS() {
       const ws = new WebSocket(WS_URL);
 
       ws.onopen = () => {
+        reconnectAttempts = 0;
         updateStatus('Connected to WebSocket server', 'green');
+        showLoading(true); // Show loading until first data is received
         console.log("WebSocket connected");
       };
 
       ws.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data);
-          if (data.type === "shipsUpdate") {
+          if (data.type === "welcome") {
+            console.log("Welcome message:", data.message);
+          } else if (data.type === "shipsUpdate") {
             updateMap(data);
           }
         } catch (err) {
@@ -90,7 +133,9 @@
       };
 
       ws.onclose = () => {
-        updateStatus('Disconnected. Reconnecting...', 'red');
+        reconnectAttempts++;
+        updateStatus(`Disconnected. Reconnecting (Attempt ${reconnectAttempts})...`, 'red');
+        showLoading(false);
         setTimeout(connectWS, 3000);
       };
 
