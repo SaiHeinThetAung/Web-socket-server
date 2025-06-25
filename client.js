@@ -1,6 +1,6 @@
 const WebSocket = require("ws");
 
-const WS_URL = "ws://localhost:4002";
+const PORTS = [4002, 4003, 4004]; // Assign unique ports for each ship
 const NUM_SHIPS = 3;
 const clients = [];
 
@@ -33,6 +33,7 @@ const routes = [
     end: { lat: 35.6764, lon: 139.6503 }, // Tokyo
     currentStep: 0,
     totalSteps: null,
+    port: PORTS[0], // Port 4002
   },
   {
     shipId: "SHIP2",
@@ -40,6 +41,7 @@ const routes = [
     end: { lat: 34.0522, lon: -118.2437 }, // Los Angeles, USA
     currentStep: 0,
     totalSteps: null,
+    port: PORTS[1], // Port 4003
   },
   {
     shipId: "SHIP3",
@@ -47,8 +49,19 @@ const routes = [
     end: { lat: 3.139, lon: 101.6869 }, // Kuala Lumpur
     currentStep: 0,
     totalSteps: null,
+    port: PORTS[2], // Port 4004
   },
 ];
+
+// Check for duplicate ship IDs
+const shipIds = routes.map((route) => route.shipId);
+const uniqueShipIds = new Set(shipIds);
+if (uniqueShipIds.size !== shipIds.length) {
+  console.error(
+    "Duplicate ship IDs detected! Each ship must have a unique ID."
+  );
+  process.exit(1); // Exit if duplicates are found
+}
 
 // Haversine formula to calculate km distance between two points
 function haversineDistance(lat1, lon1, lat2, lon2) {
@@ -139,17 +152,20 @@ function generateShipData(route, index) {
 }
 
 routes.forEach((route, i) => {
+  const WS_URL = `ws://localhost:${route.port}`;
   const ws = new WebSocket(WS_URL);
 
   ws.on("open", () => {
-    console.log(`Client ${i + 1} connected: ${route.shipId}`);
+    console.log(
+      `Client ${i + 1} connected: ${route.shipId} on port ${route.port}`
+    );
     clients.push(ws);
 
     setInterval(() => {
       if (ws.readyState === WebSocket.OPEN) {
         const data = generateShipData(route, i);
         ws.send(JSON.stringify(data));
-        console.log(`${route.shipId} sent:`, data);
+        console.log(`${route.shipId} sent on port ${route.port}:`, data);
       }
     }, 1000);
   });
@@ -157,17 +173,28 @@ routes.forEach((route, i) => {
   ws.on("message", (data) => {
     try {
       const message = JSON.parse(data);
-      console.log(`Received for ${route.shipId}:`, message);
+      console.log(
+        `Received for ${route.shipId} on port ${route.port}:`,
+        message
+      );
     } catch (err) {
-      console.error(`Error parsing for ${route.shipId}:`, err);
+      console.error(
+        `Error parsing for ${route.shipId} on port ${route.port}:`,
+        err
+      );
     }
   });
 
   ws.on("close", () => {
-    console.log(`Client ${i + 1} (${route.shipId}) disconnected`);
+    console.log(
+      `Client ${i + 1} (${route.shipId}) disconnected from port ${route.port}`
+    );
   });
 
   ws.on("error", (err) => {
-    console.error(`Client ${i + 1} (${route.shipId}) error:`, err);
+    console.error(
+      `Client ${i + 1} (${route.shipId}) error on port ${route.port}:`,
+      err
+    );
   });
 });

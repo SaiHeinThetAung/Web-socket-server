@@ -29,7 +29,7 @@ const logger = winston.createLogger({
       maxSize: "20m",
       maxFiles: "3m",
       auditFile: path.join(LOG_DIR, ".winston-audit.json"),
-      frequency: "3m",
+      frequency: "1m",
       format: winston.format.combine(
         winston.format.timestamp(),
         winston.format.json()
